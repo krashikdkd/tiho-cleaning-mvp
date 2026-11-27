@@ -1,0 +1,13 @@
+{
+  "cleanUrls": true,
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://myagko-cleaning.vercel.app/api/:path*"
+    },
+    {
+      "source": "/request/:path*",
+      "destination": "https://myagko-cleaning.vercel.app/request/:path*"
+    }
+  ]
+}
