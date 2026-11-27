@@ -6,13 +6,18 @@
   const categories=['sofa','armchair','mattress','chair','other'];
   const names={sofa:'Диван',armchair:'Кресло',mattress:'Матрас',chair:'Стул',other:'Другое'};
   const pics={sofa:'sofa-clean-front.webp',armchair:'armchair-clean-front.webp',mattress:'mattress-clean-front.webp',chair:'chair-clean-front.webp'};
+  const models={sofa:'divan.glb',armchair:'kreslo.glb',mattress:'matras.glb',chair:'stul.glb'};
   const defaults={sofa:'3 места',armchair:'Обычное',mattress:'Односпальный',chair:'Сиденье'};
   const read=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key)||'null')??fallback}catch{return fallback}};
   const save=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value))}catch{}};
   let category='sofa',variant='3 места',quantity=1,dirty=false,cart=read('myagko.local.cart.v1',[]),cartPage=null,previousCartTheme='light';
   if(!root||!scene||!tabs.length)return;
   scene.setAttribute('aria-busy','false');scene.querySelector('.loading-model')?.remove();scene.querySelector('.reset-wrap')?.remove();
-  const preview=document.createElement('div');preview.className='local-preview';preview.innerHTML='<img alt="Превью мебели"><span>Превью · автономная копия</span>';scene.prepend(preview);
+  const preview=document.createElement('div');preview.className='local-preview';preview.innerHTML='<model-viewer class="local-furniture-model" camera-controls disable-pan interaction-prompt="none" shadow-intensity="0.75" exposure="1" environment-image="neutral" camera-orbit="25deg 70deg 105%" field-of-view="32deg" alt="3D-модель мебели"></model-view><img class="local-model-poster" alt="Превью мебели"><span class="local-model-status">Поверните модель мышью или пальцем</span>';scene.prepend(preview);
+  const viewer=preview.querySelector('model-viewer'),modelStatus=preview.querySelector('.local-model-status'),modelPoster=preview.querySelector('.local-model-poster');
+  viewer.addEventListener('load',()=>{modelPoster.style.display='none';modelStatus.textContent='Поверните модель мышью или пальцем'});
+  viewer.addEventListener('error',()=>{modelPoster.style.display='block';modelStatus.textContent='Не удалось загрузить 3D-модель'});
+  modelStatus.textContent='Загружаем 3D-модель…';
   const panel=document.querySelector('.configuration .panel'),title=panel.querySelector('h2'),fields=panel.querySelector('.configuration-fields');
   let segments=fields.querySelector('.segments');const countOut=fields.querySelector('output'),price=panel.querySelector('.price'),add=panel.querySelector('.configuration-action .button'),dirtyInput=fields.querySelector('input[type="checkbox"]');
   const rubles=n=>new Intl.NumberFormat('ru-RU').format(n)+' ₽';
@@ -25,7 +30,7 @@
   function updateCart(){save('myagko.local.cart.v1',cart);const btn=document.querySelector('.cart-button');if(btn)btn.innerHTML='<span class="icon icon-cart" aria-hidden="true"></span>Заказ'+(cart.length?' <span class="cart-badge">'+cart.reduce((s,x)=>s+x.quantity,0)+'</span>':'')}
   function render(){
     tabs.forEach((b,i)=>{b.setAttribute('aria-selected',String(categories[i]===category));let mark=b.querySelector('.selected-category');if(categories[i]===category&&!mark){mark=document.createElement('span');mark.className='selected-category';b.prepend(mark)}else if(categories[i]!==category)mark?.remove()});
-    title.textContent=names[category];preview.hidden=category==='other';if(category!=='other'){preview.querySelector('img').src='posters/'+pics[category];preview.querySelector('img').alt='Превью: '+names[category].toLowerCase()}
+    title.textContent=names[category];preview.hidden=category==='other';if(category!=='other'){const model=preview.querySelector('model-viewer');modelStatus.textContent='Загружаем 3D-модель…';modelPoster.style.display='none';model.src='models/'+models[category];model.alt='3D-модель: '+names[category].toLowerCase();const poster=preview.querySelector('.local-model-poster');poster.src='posters/'+pics[category];poster.alt='Превью: '+names[category].toLowerCase()}
     if(category==='other'){if(segments)segments.hidden=true;if(!fields.querySelector('.local-description')){const l=document.createElement('label');l.className='field local-description';l.innerHTML='<span>Опишите мебель</span><input type="text" placeholder="Например, пуф или ковёр">';fields.prepend(l)}price.textContent='По запросу'}else{fields.querySelector('.local-description')?.remove();if(!segments){segments=document.createElement('div');segments.className='segments';segments.setAttribute('role','group');segments.setAttribute('aria-label','Вариант мебели');fields.prepend(segments)}segments.hidden=false;segments.innerHTML='';Object.entries(rates[category]).forEach(([label])=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.setAttribute('aria-pressed',String(variant===label));b.addEventListener('click',()=>{variant=label;render()});segments.append(b)});price.textContent=rubles(Math.round(rates[category][variant]*(dirty?1.2:1)*quantity))}
     countOut.textContent=quantity;dirtyInput.checked=dirty;updateCart();
   }
