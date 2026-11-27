@@ -40,6 +40,10 @@ Production build: `npm run build`; локальный просмотр: `npm run
 
 ## Публикация на GitHub Pages
 
-Репозиторий собирается GitHub Actions workflow из `.github/workflows/pages.yml`. После отправки ветки `main` включите Pages с источником **GitHub Actions** в настройках репозитория. Для GitHub Free репозиторий должен быть публичным; опубликованный сайт будет доступен всем, даже если тариф допускает Pages для приватного репозитория. Это статический демо-сайт: общих заказов и закрытого кабинета на GitHub Pages не будет.
+Исходники: https://github.com/krashikdkd/tiho-cleaning-mvp
+
+Опубликованный демо-сайт: https://krashikdkd.github.io/tiho-cleaning-mvp/
+
+Репозиторий собирается GitHub Actions workflow из `.github/workflows/pages.yml`. В текущем репозитории Pages уже включён с источником **GitHub Actions**. Для GitHub Free репозиторий должен быть публичным; опубликованный сайт будет доступен всем, даже если тариф допускает Pages для приватного репозитория. Это статический демо-сайт: общих заказов и закрытого кабинета на GitHub Pages не будет.
 
 Workflow настраивает Vite base path по имени репозитория, а `404.html` сохраняет прямые ссылки `/admin` и `/order/<token>` внутри Pages. После публикации проверьте ссылку из GitHub Actions → Deploy.
