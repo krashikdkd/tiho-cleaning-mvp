@@ -1,25 +1,20 @@
 import { randomUUID } from 'node:crypto';
 import { getSql, ensureSchema } from '../lib/db.js';
 import { isOwner } from '../lib/auth.js';
+import { DEFAULT_SETTINGS, getSettings } from './settings.js';
 
-const prices = {
-  'sofa|2 места': 1800, 'sofa|3 места': 2400, 'sofa|Угловой': 3400,
-  'armchair|Обычное': 1200, 'armchair|Реклайнер': 1600,
-  'mattress|Односпальный': 1400, 'mattress|Двуспальный': 2000,
-  'chair|Сиденье': 350, 'chair|Со спинкой': 500,
-};
 const allowedStatuses = new Set(['Новая заявка', 'Подтверждена', 'В работе', 'Выполнена', 'Отменена']);
 
 function clean(value, max = 500) {
   return String(value ?? '').trim().slice(0, max);
 }
 
-function calculateTotal(items, outsideCity) {
+function calculateTotal(items, outsideCity, settings) {
   const subtotal = items.reduce((sum, item) => {
-    const unit = prices[`${item.category}|${item.variant}`];
-    return sum + (unit ? Math.round(unit * (item.dirty ? 1.2 : 1)) * Math.min(20, item.quantity) : 0);
+    const unit = settings.prices[`${item.category}|${item.variant}`];
+    return sum + (unit ? Math.round(unit * (item.dirty ? 1 + settings.dirtPercent / 100 : 1)) * Math.min(99, item.quantity) : 0);
   }, 0);
-  return Math.max(subtotal, subtotal ? 2000 : 0) + (outsideCity ? 500 : 0);
+  return Math.max(subtotal, subtotal ? settings.minimum : 0) + (outsideCity ? settings.travel : 0);
 }
 
 function normalizeItems(items) {
@@ -30,7 +25,7 @@ function normalizeItems(items) {
     const category = clean(raw?.category, 30);
     const variant = clean(raw?.variant, 80);
     const quantity = Number(raw?.quantity);
-    if (!allowedCategories.has(category) || !Number.isInteger(quantity) || quantity < 1 || quantity > 20) return null;
+    if (!allowedCategories.has(category) || !Number.isInteger(quantity) || quantity < 1 || quantity > 99) return null;
     result.push({ category, variant, quantity, dirty: Boolean(raw?.dirty), description: clean(raw?.description, 300) });
   }
   return result;
@@ -60,6 +55,7 @@ export default async function handler(req, res) {
   try {
     const sql = getSql();
     await ensureSchema(sql);
+    const settings = await getSettings(sql);
 
     if (req.method === 'GET') {
       const rows = await sql`SELECT id, created_at, status, customer_name, phone, address, visit_date, visit_time, comment, items, total FROM myagko_orders ORDER BY created_at DESC LIMIT 500`;
@@ -89,7 +85,7 @@ export default async function handler(req, res) {
     }
 
     const id = `M-${randomUUID().slice(0, 8).toUpperCase()}`;
-    const total = calculateTotal(items, Boolean(body.city));
+    const total = calculateTotal(items, Boolean(body.city), settings);
     const rows = await sql`INSERT INTO myagko_orders (id, customer_name, phone, address, visit_date, visit_time, comment, items, total, consent)
       VALUES (${id}, ${name}, ${phone}, ${address}, ${clean(body.day, 20) || null}, ${clean(body.time, 20) || null}, ${clean(body.comment, 1000)}, ${JSON.stringify(items)}::jsonb, ${total}, TRUE)
       RETURNING id, created_at, status, customer_name, phone, address, visit_date, visit_time, comment, items, total`;
