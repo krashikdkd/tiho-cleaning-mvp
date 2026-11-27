@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { getSql, ensureSchema } from '../lib/db.js';
 import { isOwner } from '../lib/auth.js';
-import { DEFAULT_SETTINGS, getSettings } from './settings.js';
+import { getSettings } from './settings.js';
 
 const allowedStatuses = new Set(['Новая заявка', 'Подтверждена', 'В работе', 'Выполнена', 'Отменена']);
 
@@ -49,13 +49,12 @@ function serialize(row) {
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
-  if (!['GET', 'POST', 'PATCH'].includes(req.method)) return res.status(405).json({ error: 'Method not allowed' });
+  if (!['GET', 'POST', 'PATCH', 'DELETE'].includes(req.method)) return res.status(405).json({ error: 'Method not allowed' });
   if (req.method !== 'POST' && !isOwner(req)) return res.status(401).json({ error: 'Войдите в кабинет владельца.' });
 
   try {
     const sql = getSql();
     await ensureSchema(sql);
-    const settings = await getSettings(sql);
 
     if (req.method === 'GET') {
       const rows = await sql`SELECT id, created_at, status, customer_name, phone, address, visit_date, visit_time, comment, items, total FROM myagko_orders ORDER BY created_at DESC LIMIT 500`;
@@ -71,6 +70,15 @@ export default async function handler(req, res) {
       return res.status(200).json({ order: serialize(rows[0]) });
     }
 
+    if (req.method === 'DELETE') {
+      const id = clean(req.body?.id, 80);
+      if (!id) return res.status(400).json({ error: 'Не указан номер заявки.' });
+      const rows = await sql`DELETE FROM myagko_orders WHERE id = ${id} RETURNING id`;
+      if (!rows.length) return res.status(404).json({ error: 'Заявка не найдена.' });
+      return res.status(200).json({ deleted: true, id: rows[0].id });
+    }
+
+    const settings = await getSettings(sql);
     const body = req.body || {};
     const name = clean(body.name, 100);
     const phone = clean(body.phone, 40);
