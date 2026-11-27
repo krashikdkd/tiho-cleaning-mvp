@@ -1,4 +1,5 @@
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHmac, timingSafeEqual, randomBytes, scryptSync } from 'node:crypto';
+import { getSql } from './db.js';
 
 const COOKIE = 'myagko_owner';
 const WEEK = 7 * 24 * 60 * 60;
@@ -11,12 +12,37 @@ function sign(payload) {
   return createHmac('sha256', secret()).update(payload).digest('base64url');
 }
 
-export function passwordMatches(candidate) {
+async function credentialHash(candidate) {
+  const sql = getSql();
+  await sql`CREATE TABLE IF NOT EXISTS myagko_settings (key TEXT PRIMARY KEY, value JSONB NOT NULL)`;
+  const rows = await sql`SELECT value FROM myagko_settings WHERE key = 'owner_password' LIMIT 1`;
+  const saved = rows[0]?.value;
+  if (saved?.salt && saved?.hash) {
+    try {
+      const derived = scryptSync(candidate, Buffer.from(saved.salt, 'base64url'), 64);
+      const expected = Buffer.from(saved.hash, 'base64url');
+      return expected.length === derived.length && timingSafeEqual(derived, expected);
+    } catch { return false; }
+  }
   const expected = secret();
-  if (!expected || typeof candidate !== 'string') return false;
+  if (!expected) return false;
   const a = createHmac('sha256', 'compare').update(candidate).digest();
   const b = createHmac('sha256', 'compare').update(expected).digest();
   return timingSafeEqual(a, b);
+}
+
+export async function passwordMatches(candidate) {
+  if (typeof candidate !== 'string' || candidate.length > 200) return false;
+  return credentialHash(candidate);
+}
+
+export async function saveOwnerPassword(candidate) {
+  const sql = getSql();
+  await sql`CREATE TABLE IF NOT EXISTS myagko_settings (key TEXT PRIMARY KEY, value JSONB NOT NULL)`;
+  const salt = randomBytes(16);
+  const hash = scryptSync(candidate, salt, 64);
+  const value = { salt: salt.toString('base64url'), hash: hash.toString('base64url') };
+  await sql`INSERT INTO myagko_settings (key, value) VALUES ('owner_password', ${JSON.stringify(value)}::jsonb) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
 }
 
 export function createSessionCookie() {
