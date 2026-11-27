@@ -8,6 +8,10 @@
     {
       "source": "/request/:path*",
       "destination": "https://myagko-cleaning.vercel.app/request/:path*"
+    },
+    {
+      "source": "/next-assets/:path*",
+      "destination": "https://myagko-cleaning.vercel.app/_next/:path*"
     }
   ]
 }
