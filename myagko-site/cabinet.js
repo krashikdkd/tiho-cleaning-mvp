@@ -13,7 +13,7 @@
   };
 
   function showLogin(configured, message = '') {
-    root.innerHTML = `<div class="eyebrow">Кабинет владельца</div><h1>Вход для владельца.</h1><p class="cab-lead">Заявки клиентов доступны только после входа.</p>${configured ? '' : '<p class="cab-notice"><strong>Остался шаг настройки.</strong> Добавьте в Vercel переменную MYAGKO_ADMIN_PASSWORD — пароль владельца. После сохранения кабинет станет доступен.</p>'}<form id="owner-login" class="owner-login"><label for="owner-password">Пароль владельца</label><input id="owner-password" type="password" autocomplete="current-password" required ${configured ? '' : 'disabled'}><button class="cab-button primary" ${configured ? '' : 'disabled'}>Войти</button><p id="login-message" role="status">${esc(message)}</p></form>`;
+    root.innerHTML = `<div class="eyebrow">Кабинет владельца</div><h1>Вход для владельца.</h1><p class="cab-lead">Войдите, чтобы посмотреть новые заявки и управлять заказами.</p>${configured ? '' : '<p class="cab-notice"><strong>Нужно завершить настройку.</strong> Добавьте в Vercel переменную MYAGKO_ADMIN_PASSWORD — пароль владельца.</p>'}<form id="owner-login" class="owner-login"><label for="owner-password">Пароль владельца</label><input id="owner-password" type="password" autocomplete="current-password" required ${configured ? '' : 'disabled'}><button class="cab-button primary" ${configured ? '' : 'disabled'}>Войти в кабинет</button><p id="login-message" role="status">${esc(message)}</p></form>`;
     const form = root.querySelector('#owner-login');
     form?.addEventListener('submit', async (event) => {
       event.preventDefault();
@@ -34,19 +34,35 @@
   function showOrders(orders) {
     const countNew = orders.filter((order) => order.status === 'Новая заявка').length;
     const countActive = orders.filter((order) => ['Подтверждена', 'В работе'].includes(order.status)).length;
-    root.innerHTML = `<div class="eyebrow">Кабинет владельца</div><h1>Заявки и заказы.</h1><p class="cab-lead">Заявки хранятся в общей базе и доступны в этом кабинете с любого устройства.</p><section class="cab-stats" aria-label="Сводка"><div class="cab-stat"><span>Всего заявок</span><strong>${orders.length}</strong></div><div class="cab-stat"><span>Новые</span><strong>${countNew}</strong></div><div class="cab-stat"><span>В работе</span><strong>${countActive}</strong></div></section><div class="cab-orders-head"><h2>Последние заявки</h2><div><button class="cab-button" id="refresh">Обновить</button> <button class="cab-button" id="logout">Выйти</button></div></div><section id="orders" aria-live="polite">${orders.length ? orders.map((order) => `<article class="cab-order"><div class="cab-order-top"><div><h3>${esc(order.name)} <span class="cab-muted">· ${esc(order.phone)}</span></h3><div class="cab-id">Заявка ${esc(order.id)} · ${esc(date(order.createdAt))}</div></div><div class="cab-total">${fmt(order.total)}</div></div><div class="cab-details"><div><b>Адрес</b>${esc(order.address)}</div><div><b>Дата и время</b>${esc([order.day, order.time].filter(Boolean).join(' · ') || 'По согласованию')}</div><div><b>Комментарий</b>${esc(order.comment || '—')}</div><div><b>Состав заказа</b><ul class="cab-items">${(order.items || []).map((item) => `<li>${esc(titles[item.category] || item.category)}${item.variant ? ` · ${esc(item.variant)}` : ''} × ${esc(item.quantity)}${item.dirty ? ' · сильные загрязнения' : ''}${item.description ? ` · ${esc(item.description)}` : ''}</li>`).join('')}</ul></div></div><div class="cab-status"><label>Статус <select data-status="${esc(order.id)}">${statuses.map((status) => `<option${order.status === status ? ' selected' : ''}>${esc(status)}</option>`).join('')}</select></label><button class="cab-button primary" data-save="${esc(order.id)}">Сохранить статус</button><span class="cab-muted" data-saved="${esc(order.id)}"></span></div></article>`).join('') : '<div class="cab-empty">Заявок пока нет. Новые заявки с сайта появятся здесь.</div>'}</section>`;
+    const cards = orders.length ? orders.map((order) => `<article class="cab-order" data-order-card data-search="${esc([order.name, order.phone, order.address, order.id].join(' ').toLocaleLowerCase('ru'))}" data-order-status="${esc(order.status)}"><div class="cab-order-top"><div><h3>${esc(order.name)} <span class="cab-muted">· ${esc(order.phone)}</span></h3><div class="cab-id">Заявка ${esc(order.id)} · ${esc(date(order.createdAt))}</div></div><div class="cab-total">${fmt(order.total)}</div></div><div class="cab-details"><div><b>Адрес</b>${esc(order.address)}</div><div><b>Дата и время</b>${esc([order.day, order.time].filter(Boolean).join(' · ') || 'По согласованию')}</div><div><b>Комментарий</b>${esc(order.comment || '—')}</div><div><b>Состав заказа</b><ul class="cab-items">${(order.items || []).map((item) => `<li>${esc(titles[item.category] || item.category)}${item.variant ? ` · ${esc(item.variant)}` : ''} × ${esc(item.quantity)}${item.dirty ? ' · сильные загрязнения' : ''}${item.description ? ` · ${esc(item.description)}` : ''}</li>`).join('')}</ul></div></div><div class="cab-status"><label>Статус <select data-status="${esc(order.id)}">${statuses.map((status) => `<option${order.status === status ? ' selected' : ''}>${esc(status)}</option>`).join('')}</select></label><button class="cab-button primary" data-save="${esc(order.id)}">Сохранить статус</button><span class="cab-muted" data-saved="${esc(order.id)}"></span></div></article>`).join('') : '<div class="cab-empty">Пока нет заявок. Когда клиент оформит заказ, он появится здесь.</div>';
+    root.innerHTML = `<div class="eyebrow">Кабинет владельца</div><h1>Заявки и заказы.</h1><p class="cab-lead">Все заявки доступны в этом кабинете с любого устройства.</p><section class="cab-stats" aria-label="Сводка"><div class="cab-stat"><span>Всего заявок</span><strong>${orders.length}</strong></div><div class="cab-stat"><span>Новые</span><strong>${countNew}</strong></div><div class="cab-stat"><span>В работе</span><strong>${countActive}</strong></div></section><div class="cab-orders-head"><h2>Заявки</h2><div class="cab-tools"><input class="cab-search" id="order-search" type="search" placeholder="Имя, телефон или адрес" aria-label="Найти заявку"><select class="cab-filter" id="status-filter" aria-label="Фильтр по статусу"><option value="">Все статусы</option>${statuses.map((status) => `<option>${esc(status)}</option>`).join('')}</select><button class="cab-button" id="refresh">Обновить</button><button class="cab-button" id="logout">Выйти</button></div></div><section id="orders" aria-live="polite">${cards}<p id="no-matches" class="cab-empty" hidden>По этому запросу ничего не найдено.</p></section>`;
     root.querySelector('#refresh').addEventListener('click', load);
     root.querySelector('#logout').addEventListener('click', async () => { await call('/api/admin/logout', { method: 'POST', body: '{}' }).catch(() => {}); showLogin(true); });
+    const filterCards = () => {
+      const query = root.querySelector('#order-search').value.trim().toLocaleLowerCase('ru');
+      const status = root.querySelector('#status-filter').value;
+      let visible = 0;
+      root.querySelectorAll('[data-order-card]').forEach((card) => {
+        const match = (!query || card.dataset.search.includes(query)) && (!status || card.dataset.orderStatus === status);
+        card.hidden = !match;
+        if (match) visible++;
+      });
+      root.querySelector('#no-matches').hidden = visible > 0 || !orders.length;
+    };
+    root.querySelector('#order-search').addEventListener('input', filterCards);
+    root.querySelector('#status-filter').addEventListener('change', filterCards);
     root.querySelectorAll('[data-save]').forEach((button) => button.addEventListener('click', async () => {
       button.disabled = true;
+      const note = root.querySelector(`[data-saved="${CSS.escape(button.dataset.save)}"]`);
       try {
-        await call('/api/orders', { method: 'PATCH', body: JSON.stringify({ id: button.dataset.save, status: root.querySelector(`[data-status="${CSS.escape(button.dataset.save)}"]`).value }) });
-        const note = root.querySelector(`[data-saved="${CSS.escape(button.dataset.save)}"]`);
+        const status = root.querySelector(`[data-status="${CSS.escape(button.dataset.save)}"]`).value;
+        await call('/api/orders', { method: 'PATCH', body: JSON.stringify({ id: button.dataset.save, status }) });
+        const card = button.closest('[data-order-card]');
+        card.dataset.orderStatus = status;
         note.textContent = 'Сохранено';
-      } catch (error) {
-        const note = root.querySelector(`[data-saved="${CSS.escape(button.dataset.save)}"]`);
-        note.textContent = error.message;
-      } finally { button.disabled = false; }
+        filterCards();
+      } catch (error) { note.textContent = error.message; }
+      finally { button.disabled = false; }
     }));
   }
 
