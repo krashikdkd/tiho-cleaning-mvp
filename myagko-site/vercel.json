@@ -12,6 +12,10 @@
     {
       "source": "/next-assets/:path*",
       "destination": "https://myagko-cleaning.vercel.app/_next/:path*"
+    },
+    {
+      "source": "/:path*",
+      "destination": "https://myagko-cleaning.vercel.app/:path*"
     }
   ]
 }
