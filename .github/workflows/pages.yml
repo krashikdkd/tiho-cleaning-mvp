@@ -26,6 +26,8 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
       - name: Add Pages SPA fallback
         run: cp dist/index.html dist/404.html
+      - name: Add Myagko static copy
+        run: mkdir -p dist/myagko-site && cp -R myagko-site/. dist/myagko-site/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
